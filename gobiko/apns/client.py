@@ -8,15 +8,194 @@ from collections import namedtuple
 from contextlib import closing
 from hyper import HTTP20Connection
 
-from .exceptions import (
-    InternalException,
-    ImproperlyConfigured,
-    PayloadTooLarge,
-    BadDeviceToken,
-    PartialBulkMessage
-)
+# from .exceptions import (
+#     InternalException,
+#     ImproperlyConfigured,
+#     PayloadTooLarge,
+#     BadDeviceToken,
+#     PartialBulkMessage
+# )
 
-from .utils import validate_private_key, wrap_private_key
+class APNsException(Exception):
+    def __str__(self):
+        return '{e.__class__.__name__}: {e.__doc__}'.format(e=self)
+
+
+class InternalException(APNsException):
+    pass
+
+
+class ImproperlyConfigured(APNsException):
+    pass
+
+
+class BadCollapseId(APNsException):
+    "The collapse identifier exceeds the maximum allowed size"
+    pass
+
+
+class BadDeviceToken(APNsException):
+    "The specified device token was bad. Verify that the request contains a valid token and that the token matches the environment."
+    pass
+
+
+class BadExpirationDate(APNsException):
+    "The apns-expiration value is bad."
+    pass
+
+
+class BadMessageId(APNsException):
+    "The apns-id value is bad."
+    pass
+
+class PartialBulkMessage(APNsException):
+    def __init__(self, message, bad_registration_ids):
+        super(APNsException, self).__init__(message)
+        self.bad_registration_ids = bad_registration_ids
+
+class BadPriority(APNsException):
+    "The apns-priority value is bad."
+    pass
+
+
+class BadTopic(APNsException):
+    "The apns-topic was invalid."
+    pass
+
+
+class DeviceTokenNotForTopic(APNsException):
+    "The device token does not match the specified topic."
+    pass
+
+
+class DuplicateHeaders(APNsException):
+    "One or more headers were repeated."
+    pass
+
+
+class IdleTimeout(APNsException):
+    "Idle time out."
+    pass
+
+
+class MissingDeviceToken(APNsException):
+    "The device token is not specified in the request :path. Verify that the :path header contains the device token."
+    pass
+
+
+class MissingTopic(APNsException):
+    "The apns-topic header of the request was not specified and was required. The apns-topic header is mandatory when the client is connected using a certificate that supports multiple topics."
+    pass
+
+
+class PayloadEmpty(APNsException):
+    "The message payload was empty."
+    pass
+
+
+class TopicDisallowed(APNsException):
+    "Pushing to this topic is not allowed."
+    pass
+
+
+class BadCertificate(APNsException):
+    "The certificate was bad."
+    pass
+
+
+class BadCertificateEnvironment(APNsException):
+    "The client certificate was for the wrong environment."
+    pass
+
+
+class ExpiredProviderToken(APNsException):
+    "The provider token is stale and a new token should be generated."
+    pass
+
+
+class Forbidden(APNsException):
+    "The specified action is not allowed."
+    pass
+
+
+class InvalidProviderToken(APNsException):
+    "The provider token is not valid or the token signature could not be verified."
+    pass
+
+
+class MissingProviderToken(APNsException):
+    "No provider certificate was used to connect to APNs and Authorization header was missing or no provider token was specified."
+    pass
+
+
+class BadPath(APNsException):
+    "The request contained a bad :path value."
+    pass
+
+
+class MethodNotAllowed(APNsException):
+    "The specified :method was not POST."
+    pass
+
+
+class Unregistered(APNsException):
+    "The device token is inactive for the specified topic. Expected HTTP/2 status code is 410; see Table 8-4."
+    pass
+
+
+class PayloadTooLarge(APNsException):
+    "The message payload was too large. See Creating the Remote Notification Payload for details on maximum payload size."
+    pass
+
+
+class TooManyProviderTokenUpdates(APNsException):
+    "The provider token is being updated too often."
+    pass
+
+
+class TooManyRequests(APNsException):
+    "Too many requests were made consecutively to the same device token."
+    pass
+
+
+class InternalServerError(APNsException):
+    "An internal server error occurred."
+    pass
+
+
+class ServiceUnavailable(APNsException):
+    "The service is unavailable."
+    pass
+
+
+class Shutdown(APNsException):
+    "The server is shutting down."
+    pass
+
+
+
+#from .utils import validate_private_key, wrap_private_key
+from textwrap import wrap
+
+def validate_private_key(private_key):
+    mode = "start"
+    for line in private_key.split("\n"):
+        if mode == "start":
+            if "BEGIN PRIVATE KEY" in line:
+                mode = "key"
+        elif mode == "key":
+            if "END PRIVATE KEY" in line:
+                mode = "end"
+                break
+    if mode != "end":
+        raise Exception("The auth key provided is not valid")
+
+
+def wrap_private_key(private_key):
+    # Wrap key to 64 lines
+    comps = private_key.split("\n")
+    wrapped_key = "\n".join(wrap(comps[1], 64))
+    return "\n".join([comps[0], wrapped_key, comps[2]])
 
 
 ALGORITHM = 'ES256'
@@ -172,8 +351,12 @@ class APNsClient(object):
         data["aps"] = aps_data
         data.update(extra)
 
+        print("data:")
+        # for key in data:
+        #     print("\t"+key+":"+data[key])
         # Convert to json, avoiding unnecessary whitespace with separators (keys sorted for tests)
         json_data = json.dumps(data, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        print("data:"+json_data)
 
         if len(json_data) > MAX_NOTIFICATION_SIZE:
             raise PayloadTooLarge("Notification body cannot exceed %i bytes" % (MAX_NOTIFICATION_SIZE))
@@ -190,6 +373,33 @@ class APNsClient(object):
             'apns-topic': topic,
             'authorization': 'bearer {0}'.format(auth_token)
         }
+        print("headers:")
+        for key in request_headers:
+            print("\t"+key+":"+request_headers[key])
+    # apns-id:7cc5837e-2e90-4359-a24f-ba06be5fc9be
+	# authorization:bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Iko1N0tEUUpXTE4ifQ.eyJpc3MiOiJYNFoyTDVLTTQzIiwiaWF0IjoxNTk4MTY3OTEyLjI5ODQxNH0.KmYLJFamlCejzEkEaDPGXF4M2v6dUL2KBn0VyV14T-z4-c5cdfZwwkBzNk2vTg7GBqsDMqammkTs0i3f2V3oPQ
+	# apns-topic:com.nb.dev9
+	# apns-priority:10
+	# apns-expiration:1600759912
+
+#eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Iko1N0tEUUpXTE4ifQ
+#  atob('eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Iko1N0tEUUpXTE4ifQ');
+#    "{"alg":"ES256","typ":"JWT","kid":"J57KDQJWLN"}"
+#eyJpc3MiOiJYNFoyTDVLTTQzIiwiaWF0IjoxNTk4MTY3OTEyLjI5ODQxNH0
+#atob('eyJpc3MiOiJYNFoyTDVLTTQzIiwiaWF0IjoxNTk4MTY3OTEyLjI5ODQxNH0')
+#"{"iss":"X4Z2L5KM43","iat":1598167912.298414}"
+#KmYLJFamlCejzEkEaDPGXF4M2v6dUL2KBn0VyV14T-z4-c5cdfZwwkBzNk2vTg7GBqsDMqammkTs0i3f2V3oPQ
+# remove 2 hyphens, then atob() returns something.
+        print("registration id:"+registration_id)
+
+# data:{"aps":{"alert":"from cmdline, when app iswith jiguang. received APNsID 9:22 running "}}
+# headers:
+# 	apns-id:0fa145bc-d07a-4366-b199-9270de952880
+# 	authorization:bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Iko1N0tEUUpXTE4ifQ.eyJpc3MiOiJYNFoyTDVLTTQzIiwiaWF0IjoxNTk4MTY5OTI3LjE1OTk2Mn0.6E-oyK8_3Bi5vn80CsBHSIPWgYdF0Crf-CpI_Oe5zEjP3DHYzrTmCPVzXu6KYKHCs4HFSYjz3pD6_bnzzSGMtQ
+# 	apns-topic:com.nb.dev9
+# 	apns-priority:10
+# 	apns-expiration:1600761927
+# registration id:B12C9FAD68C77B377F4106A1761D31B2892D61D342731A7445FB6B6DA890B197        
 
         if connection:
             response = self._send_push_request(connection, registration_id, json_data, request_headers)
@@ -218,3 +428,58 @@ class APNsClient(object):
                 raise getattr(exceptions_module, reason, InternalException)
 
         return True
+
+bid="com.nb.yjy133" #"com.nb.yjy128" #"com.nb2.dev9"  #"com.nb.dev9" #
+msgtext="from cmdline, "
+if (bid=="com.nb.dev9"):
+    client = APNsClient(
+    team_id="X4Z2L5KM43", #"Y5AQM22QDU", #
+    bundle_id="com.nb.dev9",
+    auth_key_id="J57KDQJWLN",
+    auth_key_filepath="/Users/yogi/Downloads/AuthKey_J57KDQJWLN.p8",
+    use_sandbox=False,
+    force_proto='h2'
+    )
+    APNsID="F5DA74B1E7A08E9BE2EB891AEC4C2DA4A79A760A4EE7A8ECBCE56A22D9CEB1A8" #good
+    APNsID="7E840B9C44ECE9FFFE32FB5F2842838B86549DDE25FE21F72E35DF72D65A3D05" #bad
+    client.send_message(APNsID,msgtext)
+elif (bid=="com.nb.yjy128"):
+    client = APNsClient(
+    team_id="X4Z2L5KM43", #"Y5AQM22QDU", #
+    bundle_id="com.nb.yjy128",
+    auth_key_id="J57KDQJWLN",
+    auth_key_filepath="/Users/yogi/Downloads/AuthKey_J57KDQJWLN.p8",
+    use_sandbox=False,
+    force_proto='h2'
+    )
+    APNsID="7E840B9C44ECE9FFFE32FB5F2842838B86549DDE25FE21F72E35DF72D65A3D05" #good
+    APNsID="F5DA74B1E7A08E9BE2EB891AEC4C2DA4A79A760A4EE7A8ECBCE56A22D9CEB1A8" #gobiko.apns.exceptions.DeviceTokenNotForTopic
+    client.send_message(APNsID,msgtext)
+elif (bid=="com.nb2.dev9"):
+    client = APNsClient(
+    team_id="Y6N4VC6T2C", #"Y5AQM22QDU", #
+    bundle_id="com.nb2.dev9",
+    auth_key_id="48WST6764Z",
+    auth_key_filepath="/Users/yogi/Downloads/AuthKey_48WST6764Z.p8",
+    use_sandbox=False,
+    force_proto='h2'
+    )
+    APNsID="D1E728FF48C796FA851E9415DE0170E5C438A9275B6BAD9F2AF29FAEFAF3FC8E" #good
+    APNsID="F5DA74B1E7A08E9BE2EB891AEC4C2DA4A79A760A4EE7A8ECBCE56A22D9CEB1A8" #gobiko.apns.exceptions.DeviceTokenNotForTopic
+    client.send_message(APNsID,msgtext)
+elif (bid=="com.nb.yjy133"):
+    client = APNsClient(
+    team_id="X4Z2L5KM43", #"Y5AQM22QDU", #
+    bundle_id=bid,
+    auth_key_id="956TVBK24A",
+    auth_key_filepath="/Users/yogi/Downloads/AuthKey_956TVBK24A.p8",
+    use_sandbox=False,
+    force_proto='h2'
+    )
+    APNsID="78CE05CF61B71B6AB7154A66A6831D056823E4F654C8E0D59C0BF9ACFB0E63B8" #
+    client.send_message(APNsID,msgtext)
+else:
+    print("bundle id not expected:"+bid)
+
+
+

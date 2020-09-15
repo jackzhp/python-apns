@@ -1,0 +1,202 @@
+eth.getRawTransaction('0x3945843d063894c669a205a3b1eb08601738466aa6ed4317d556a73c2040bfb3');
+
+"0xf8a94b851f3305bc0082ea6094dac17f958d2ee523a2206206994597c13d831ec780b844a9059cbb000000000000000000000000fee5179ab01873ef7e48d71eb59e7cec95fb71cf0000000000000000000000000000000000000000000000000000000000e4e1c01ca03d8f8dcd06385cc00bc9f2151ccbf6414e9a3235b52c3119212066b652abfb95a03dd08cea1c151535ad24cf5eaebb82b847dc07bcd09dcc863001fbbfeb979ddc"
+f8a9                                                length 0xa9=169
+    4b                                              nonce 0x4b = 75d. sequence # from the "from account" eth.getTransactionCount(<account>)
+      851f3305bc00                                  gas price 0x05 bytes: 0x1F3305BC00 = 134 000 000 000  
+                  82ea60                            gas limit 0x02 bytes: 0xEA60 = 60 000     
+                        94dac17f958d2ee523a2206206994597c13d831ec7  0x14=20 bytes: contract address(USDT)   
+  80                                                0 ether. empty byte array
+    b844                                            ?   is 0x44 telling the length of bytes followed?!  then what is 0xb8?
+        a9059cbb                                    function selector
+                000000000000000000000000fee5179ab01873ef7e48d71eb59e7cec95fb71cf    receiver address
+                0000000000000000000000000000000000000000000000000000000000e4e1c0    amount = 15 000 000
+                1c                                  parity
+                  a03d8f8dcd06385cc00bc9f2151ccbf6414e9a3235b52c3119212066b652abfb95    r
+                  a03dd08cea1c151535ad24cf5eaebb82b847dc07bcd09dcc863001fbbfeb979ddc    s
+
+
+0xf8a95085280bffb80082ea6094dac17f958d2ee523a2206206994597c13d831ec780b844a9059cbb000000000000000000000000fee5179ab01873ef7e48d71eb59e7cec95fb71cf0000000000000000000000000000000000000000000000000000000258ef1c801ba0659631ad857c2061209acc827f14c3fb043d693e5457d7381061b2653e6cfa05a06d20616a8174dc8851dc983525fea7f10ba9b006502b24da6f84f42a957343cf
+f8a9
+    50
+      85280bffb800
+                  82ea60
+                        94dac17f958d2ee523a2206206994597c13d831ec7
+  80
+    b844
+        a9059cbb
+                000000000000000000000000fee5179ab01873ef7e48d71eb59e7cec95fb71cf
+                0000000000000000000000000000000000000000000000000000000258ef1c80
+                1b
+                  a0659631ad857c2061209acc827f14c3fb043d693e5457d7381061b2653e6cfa05
+                  a06d20616a8174dc8851dc983525fea7f10ba9b006502b24da6f84f42a957343cf
+
+
+
+
+0xfc1f219bf6c1c168b33b1a8b8dbe977e8ee10a0d  from
+Interacted With (To):
+Contract 
+0xdac17f958d2ee523a2206206994597c13d831ec7  contract address
+
+
+
+to send 0.0740 ether:
+
+./build/bin/geth --syncmode light    
+./build/bin/geth attach 
+
+
+web3.personal.unlockAccount(web3.personal.listAccounts[0], null, 60)  //unload it for 60 seconds
+eth.sendTransaction({from: "0xceee57f2b700c2f37d1476a7974965e149fce2d4",to: "0x7aa4a14286a25e3a275d7a122c23dc3c107a636a", value: "74000000000000000"})
+
+eth.getBalance("0xceee57f2b700c2f37d1476a7974965e149fce2d4") //check sender's balance
+//cost 21,000 of Gas (standard for sending funds)
+
+
+sending example: https://github.com/ethereum/web3.js/issues/1151
+
+
+```const Web3 = require("web3");
+const web3 = new Web3();
+web3.setProvider(new 
+web3.providers.HttpProvider("https://ropsten.infura.io/XXXXXX"));
+var abi = [ {} ] // redacted on purpose
+var count = web3.eth.getTransactionCount("0x9...");
+var abiArray = abi;
+var contractAddress = "0x2...";
+var contract =  web3.eth.contract(abiArray).at(contractAddress);
+
+var data = contract.transfer.getData("0x2...", 10000, {from: "0x9..."});
+var gasPrice = web3.eth.gasPrice;
+var gasLimit = 90000;
+
+var rawTransaction = {
+  "from": "0x9...",
+  "nonce": web3.toHex(count),
+  "gasPrice": web3.toHex(gasPrice),
+  "gasLimit": web3.toHex(gasLimit),
+  "to": "0x2...",
+  "value": "0x1",
+  "data": data,
+  "chainId": 0x03
+};
+rawTransaction.from = "0x9..."; // as you have set in example
+rawTransaction.value = 0; // as you don't want to send ether with transaction
+rawTransaction.to = tokenAddress;
+rawTransaction.data = contract.transfer.getData(userAddress, tokenValues); // 
+
+var privKey = new Buffer('XXXXXXXXXXXXXX', 'hex');
+var tx = new Tx(rawTransaction);
+/* tx = {
+  value: '0x0', 
+  from: from,
+  to: Contract._address,
+  data: Contract.methods.transfer(to, 1000).encodeABI(),  
+} */
+
+tx.sign(privKey);
+var serializedTx = tx.serialize();
+
+web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'), function(err, hash) {
+  if (!err)
+      console.log(hash);
+  else
+      console.log(err);
+});```
+
+
+
+
+
+
+to generate a raw tx:
+var Accounts = require('web3-eth-accounts');
+// Passing in the eth or web3 package is necessary to allow retrieving chainId, gasPrice and nonce automatically
+// for accounts.signTransaction().
+// var accounts = new Accounts('ws://localhost:8546');
+var accounts = new Accounts();
+// if nonce, chainId, gas and gasPrice is given it returns synchronous
+accounts.signTransaction({
+    to: '0xF0109fC8DF283027b6285cc889F5aA624EaC1F55',
+    value: '1000000000',
+    gas: 2000000,
+    gasPrice: '234567897654321',
+    nonce: 0,
+    chainId: 1
+}, '0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318')
+output rawTransaction.
+
+
+
+
+
+to get private key with nodejs module
+
+const keythereum = require('keythereum');
+const address = '0x9e378d2365b7657ebb0f72ae402bc08812022211';
+const datadir = '/home/administrator/ethereum/data';
+const password = 'password';
+let str;
+keythereum.importFromFile(address, datadir, function (keyObject) {
+  keythereum.recover(password, keyObject, function (privateKey) {
+    console.log(privateKey.toString('hex'));
+//05a20149c1c76ae9da8457435bf0224a4f81801da1d8204cb81608abe8c112ca  
+  });
+});
+
+to make a raw tx with nodejs module
+const ethTx = require('ethereumjs-tx');
+
+const txParams = {
+  nonce: '0x6', // Replace by nonce for your account on geth node
+  gasPrice: '0x09184e72a000', 
+  gasLimit: '0x30000',
+  to: '0xfa3caabc8eefec2b5e2895e5afbf79379e7268a7', 
+  value: '0x00'
+};
+// Transaction is created
+const tx = new ethTx(txParams);
+const privKey = Buffer.from('05a20149c1c76ae9da8457435bf0224a4f81801da1d8204cb81608abe8c112ca', 'hex');
+// Transaction is signed
+tx.sign(privKey);
+const serializedTx = tx.serialize();
+const rawTx = '0x' + serializedTx.toString('hex');
+console.log(rawTx)
+
+npm install ethereumjs-tx
+
+const Tx = require('ethereumjs-tx').Transaction
+var privateKey = new Buffer('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
+var rawTx = {
+  nonce: '0x00',
+  gasPrice: '0x09184e72a000', 
+  gasLimit: '0x2710',
+  to: '0x0000000000000000000000000000000000000000', 
+  value: '0x00', 
+  data: '0x7f7465737432000000000000000000000000000000000000000000000000000000600057'
+}
+var tx = new Tx(rawTx)
+tx.sign(privateKey)
+var serializedTx = tx.serialize()
+console.log(serializedTx.toString('hex'))
+
+
+
+var ca='0xdAC17F958D2ee523a2206206994597C13D831ec7'
+var aa='0xfee5179ab01873ef7e48d71eb59e7cec95fb71cf'
+
+var tokenContract = eth.contract([{
+     "type":"function",
+     "name":"balanceOf",
+     "constant":true,
+     "payable":false,
+     "inputs":[{"name":"","type":"address"}],
+     "outputs":[{"name":"","type":"uint256","value":"0"}]
+}]);
+tokenContract.at(ca).balanceOf(aa);
+
+tx#: 0x3945843d063894c669a205a3b1eb08601738466aa6ed4317d556a73c2040bfb3
+
+
+
